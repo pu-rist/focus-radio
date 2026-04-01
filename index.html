@@ -26,7 +26,6 @@
       overflow: hidden;
     }
 
-    /* Hidden YouTube iframe */
     #yt-player {
       position: absolute;
       width: 1px; height: 1px;
@@ -34,7 +33,6 @@
       pointer-events: none;
     }
 
-    /* Full-screen layout */
     .stage {
       width: 100vw; height: 100vh;
       display: flex;
@@ -45,7 +43,6 @@
       position: relative;
     }
 
-    /* Grain overlay */
     .stage::before {
       content: '';
       position: fixed; inset: 0;
@@ -56,7 +53,6 @@
       opacity: 0.5;
     }
 
-    /* Visualizer */
     .visualizer {
       display: flex;
       align-items: flex-end;
@@ -83,7 +79,6 @@
       to   { height: var(--max-h, 48px); opacity: 1; }
     }
 
-    /* Info block */
     .info {
       position: relative;
       z-index: 1;
@@ -117,7 +112,6 @@
       to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* Controls */
     .controls {
       margin-top: 36px;
       position: relative;
@@ -156,7 +150,6 @@
       color: var(--bg);
     }
 
-    /* Status dot */
     .status {
       display: flex;
       align-items: center;
@@ -189,7 +182,6 @@
       50% { opacity: 0.4; }
     }
 
-    /* Overlay for autoplay gate */
     #gate {
       position: fixed; inset: 0;
       background: var(--bg);
@@ -246,14 +238,12 @@
 </head>
 <body>
 
-<!-- Autoplay gate (browsers require user gesture) -->
 <div id="gate">
   <span class="gate-label">Focus Radio</span>
   <h1 class="gate-title">Press play.</h1>
   <button class="gate-btn" onclick="startRadio()">Start listening</button>
 </div>
 
-<!-- Hidden YouTube player -->
 <div id="yt-player"></div>
 
 <div class="stage">
@@ -277,14 +267,12 @@
 
 <script>
   // ─── PLAYLIST ─────────────────────────────────────────────────────────────
-  // Add more objects here: { id: 'YOUTUBE_VIDEO_ID', title: 'Label' }
+  // Add more mixes here: { id: 'YOUTUBE_VIDEO_ID', title: 'Label' }
   const PLAYLIST = [
     {
       id: 'jB8zCEsPn_I',
       title: 'Melodic House & Techno Mix'
     },
-    // Add more mixes below — just copy the format above
-    // { id: 'VIDEO_ID_HERE', title: 'Mix Title Here' },
     {
       id: 'fPOcBsbu-5Q',
       title: 'Deep House Mix'
@@ -322,7 +310,7 @@
   function setTitle(title) {
     const el = document.getElementById('track-title');
     el.style.animation = 'none';
-    el.offsetHeight; // reflow
+    el.offsetHeight;
     el.style.animation = '';
     el.textContent = title;
   }
@@ -333,21 +321,23 @@
     });
   }
 
-  function playRandom() {
-    if (PLAYLIST.length === 0) return;
+  function pickRandom() {
+    if (PLAYLIST.length === 1) return 0;
     let next;
-    if (PLAYLIST.length === 1) {
-      next = 0;
-    } else {
-      do { next = Math.floor(Math.random() * PLAYLIST.length); } while (next === currentIndex);
-    }
-    currentIndex = next;
-    const mix = PLAYLIST[currentIndex];
+    do { next = Math.floor(Math.random() * PLAYLIST.length); } while (next === currentIndex);
+    return next;
+  }
+
+  function playIndex(index) {
+    currentIndex = index;
+    const mix = PLAYLIST[index];
     setTitle(mix.title);
     setStatus(false, 'loading...');
-    if (player) {
-      player.loadVideoById(mix.id);
-    }
+    player.loadVideoById(mix.id);
+  }
+
+  function playRandom() {
+    playIndex(pickRandom());
   }
 
   function togglePause() {
@@ -380,16 +370,15 @@
     document.head.appendChild(tag);
   }
 
-  // Called by YouTube API when ready
   window.onYouTubeIframeAPIReady = function() {
-    const first = PLAYLIST[0];
-    currentIndex = 0;
-    setTitle(first.title);
+    const startIndex = pickRandom();
+    currentIndex = startIndex;
+    setTitle(PLAYLIST[startIndex].title);
 
     player = new YT.Player('yt-player', {
       height: '1',
       width: '1',
-      videoId: first.id,
+      videoId: PLAYLIST[startIndex].id,
       playerVars: {
         autoplay: 1,
         controls: 0,
@@ -403,19 +392,12 @@
           setStatus(true, 'live');
         },
         onStateChange: (e) => {
-          // YT.PlayerState.ENDED = 0
-          if (e.data === 0) {
-            playRandom();
-          }
-          // YT.PlayerState.PLAYING = 1
+          if (e.data === 0) playRandom();
           if (e.data === 1) {
             setStatus(true, 'live');
             pauseVisualizer(false);
           }
-          // YT.PlayerState.BUFFERING = 3
-          if (e.data === 3) {
-            setStatus(false, 'buffering...');
-          }
+          if (e.data === 3) setStatus(false, 'buffering...');
         },
         onError: () => {
           setStatus(false, 'error — skipping');
