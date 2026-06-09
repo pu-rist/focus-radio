@@ -337,6 +337,7 @@
   }
 
   function playIndex(index) {
+    if (!player) return;
     currentIndex = index;
     const mix = PLAYLIST[index];
     setTitle(mix.title);
@@ -345,6 +346,7 @@
   }
 
   function playRandom() {
+    if (!player) return;
     playIndex(pickRandom());
   }
 
@@ -407,9 +409,26 @@
           }
           if (e.data === 3) setStatus(false, 'buffering...');
         },
-        onError: () => {
+        onError: (e) => {
+          const codes = {
+            2:   'invalid video id',
+            5:   'html5 player error',
+            100: 'video not found or private',
+            101: 'embedding disabled by uploader',
+            150: 'embedding disabled by uploader',
+          };
+          const reason = codes[e.data] || `unknown error (code ${e.data})`;
+          console.warn(`[Focus Radio] "${PLAYLIST[currentIndex].title}" failed — ${reason}`);
           setStatus(false, 'error — skipping');
-          setTimeout(playRandom, 2000);
+          const target = e.target;
+          setTimeout(() => {
+            const next = pickRandom();
+            currentIndex = next;
+            const mix = PLAYLIST[next];
+            setTitle(mix.title);
+            setStatus(false, 'loading...');
+            target.loadVideoById(mix.id);
+          }, 2000);
         }
       }
     });
